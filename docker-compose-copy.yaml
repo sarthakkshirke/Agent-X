@@ -1,0 +1,45 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/.env:/app/.env:ro
+      # Optionally mount migrations if stored elsewhere:
+      # - ./backend/supabase:/app/supabase:ro
+    environment:
+      - ENV_MODE=local
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_SSL=False
+      # Supabase connection details (use your own)
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+        # Link CLI to your project (or skip if already linked)
+        supabase link --project-ref ${SUPABASE_PROJECT_REF};
+        # Apply all migrations (creates history table if missing)
+        supabase db push --yes;
+        # Then start your API
+        python api.py
+      "

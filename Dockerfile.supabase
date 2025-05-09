@@ -1,0 +1,12 @@
+# Dockerfile.supabase
+FROM node:20-alpine
+
+RUN npm install -g supabase@latest
+
+WORKDIR /app
+
+# Copy the supabase folder (schemas/migrations)
+COPY backend/supabase ./supabase
+
+# Set default shell
+CMD ["/bin/sh"]
